@@ -34,8 +34,14 @@ bool SootSensorExample_init(I2C_Handle sharedI2cHandle)
     config.mcp4728_address = 0x60u;
     config.ads1115_address = 0x48u; /* ADDR is wired to GND. */
 
-    /* Exact measured feedback resistor from the current analog circuit. */
-    config.feedback_resistance_ohms = 1000411.0f;
+    config.adg728_address = 0x4Cu; /* Default Adafruit address jumpers. */
+
+    /*
+     * S1..S4 resistor values are defined at the beginning of soot_resistance.c.
+     * Defaults are 100, 1000, 10000, 100000 ohms; replace with measured values.
+     * Optional per-board override: config.feedback_resistance_ohms[0] = 99.98f;
+     * SootResistance_read() automatically chooses one feedback channel.
+     */
 
     status = SootResistance_init(&sootSensor, &config);
     return status == SOOT_RESISTANCE_STATUS_OK;
@@ -46,6 +52,8 @@ SootResistance_Status SootSensorExample_measure(
 {
     /*
      * On success, result->resistance_ohms is the resistance between clamps.
+     * result->feedback_channel identifies S1..S4; bias_volts/delta_volts and
+     * feedback_resistance_ohms provide calibration diagnostics.
      * Coworkers can add that value to their wireless packet outside this file.
      */
     return SootResistance_read(&sootSensor, result);
