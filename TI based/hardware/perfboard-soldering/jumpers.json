@@ -1,0 +1,114 @@
+[
+  {
+    "id": "01",
+    "net": "supply",
+    "start": "G16",
+    "end": "J14",
+    "connection": "ADS VIN \u2192 C2 supply"
+  },
+  {
+    "id": "02",
+    "net": "supply",
+    "start": "J14",
+    "end": "K14",
+    "connection": "C2 supply \u2192 U1 pin 8"
+  },
+  {
+    "id": "03",
+    "net": "ground",
+    "start": "G9",
+    "end": "N11",
+    "connection": "DAC GND \u2192 U1 pin 4"
+  },
+  {
+    "id": "04",
+    "net": "ground",
+    "start": "N11",
+    "end": "J12",
+    "connection": "U1 pin 4 \u2192 C2 ground"
+  },
+  {
+    "id": "05",
+    "net": "ground",
+    "start": "G20",
+    "end": "G17",
+    "connection": "ADS ADDR \u2192 ADS GND"
+  },
+  {
+    "id": "06",
+    "net": "ground",
+    "start": "N11",
+    "end": "Q24",
+    "connection": "U1 pin 4 \u2192 sensor return"
+  },
+  {
+    "id": "07",
+    "net": "dac",
+    "start": "G8",
+    "end": "M11",
+    "connection": "DAC VA \u2192 U1 pin 3"
+  },
+  {
+    "id": "08",
+    "net": "bias",
+    "start": "K11",
+    "end": "L11",
+    "connection": "U1 pin 1 \u2192 pin 2"
+  },
+  {
+    "id": "09",
+    "net": "bias",
+    "start": "K11",
+    "end": "N14",
+    "connection": "U1 pin 1 \u2192 pin 5"
+  },
+  {
+    "id": "10",
+    "net": "bias",
+    "start": "K11",
+    "end": "B19",
+    "connection": "U1 pin 1 \u2192 ADS A1"
+  },
+  {
+    "id": "11",
+    "net": "out",
+    "start": "L14",
+    "end": "B20",
+    "connection": "U1 pin 7 \u2192 ADS A0"
+  },
+  {
+    "id": "12",
+    "net": "out",
+    "start": "L14",
+    "end": "M17",
+    "connection": "U1 pin 7 \u2192 C1 output"
+  },
+  {
+    "id": "13",
+    "net": "out",
+    "start": "M17",
+    "end": "O22",
+    "connection": "C1 output \u2192 R1 output"
+  },
+  {
+    "id": "14",
+    "net": "sense",
+    "start": "M14",
+    "end": "M16",
+    "connection": "U1 pin 6 \u2192 C1 sense"
+  },
+  {
+    "id": "15",
+    "net": "sense",
+    "start": "M14",
+    "end": "O15",
+    "connection": "U1 pin 6 \u2192 R1 sense"
+  },
+  {
+    "id": "16",
+    "net": "sense",
+    "start": "M14",
+    "end": "P24",
+    "connection": "U1 pin 6 \u2192 sensor sense"
+  }
+]

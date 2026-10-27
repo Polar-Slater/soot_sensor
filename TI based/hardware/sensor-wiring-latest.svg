@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1420" height="1080" viewBox="0 0 1420 1080">
+<rect width="1420" height="1080" fill="#f8fafc"/>
+<text x="45" y="47" font-family="Segoe UI,Arial,sans-serif" font-size="30" fill="#243447" text-anchor="start" font-weight="700">Wiring diagram — MCP4728 / ADS1115 / MCP6002</text>
+<text x="45" y="79" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#243447" text-anchor="start">Latest connections: pin 4 → MCP4728 GND; pin 8 → ADS1115 VIN. Sensor clamps remain on the right.</text>
+<rect x="40" y="120" width="220" height="60" rx="8" fill="#e9eef5" stroke="#64748b" stroke-width="2"/>
+<text x="150" y="157" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#243447" text-anchor="middle" font-weight="700">CC2650 interface</text>
+<polyline points="260,150 410,150" fill="none" stroke="#64748b" stroke-width="5"/>
+<text x="335" y="136" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#243447" text-anchor="middle">QT cable</text>
+<rect x="410" y="120" width="220" height="60" rx="8" fill="#efe6f5" stroke="#64748b" stroke-width="2"/>
+<text x="520" y="157" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#243447" text-anchor="middle" font-weight="700">MCP4728 QT</text>
+<polyline points="630,150 950,150" fill="none" stroke="#64748b" stroke-width="5"/>
+<text x="790" y="136" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#243447" text-anchor="middle">QT cable: power + GND + SDA + SCL</text>
+<rect x="950" y="120" width="220" height="60" rx="8" fill="#e4f1f4" stroke="#64748b" stroke-width="2"/>
+<text x="1060" y="157" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#243447" text-anchor="middle" font-weight="700">ADS1115 QT</text>
+<text x="45" y="207" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#243447" text-anchor="start">QT power must be 3.3 V; CC2650 connector pinout is not specified here.</text>
+<rect x="70" y="250" width="280" height="175" rx="8" fill="#efe6f5" stroke="#64748b" stroke-width="2"/>
+<text x="210" y="285" font-family="Segoe UI,Arial,sans-serif" font-size="24" fill="#243447" text-anchor="middle" font-weight="700">MCP4728</text>
+<text x="330" y="334" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#243447" text-anchor="end">VA (channel A)</text>
+<text x="330" y="389" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#243447" text-anchor="end">GND</text>
+<rect x="1050" y="250" width="315" height="215" rx="8" fill="#e4f1f4" stroke="#64748b" stroke-width="2"/>
+<text x="1207" y="285" font-family="Segoe UI,Arial,sans-serif" font-size="24" fill="#243447" text-anchor="middle" font-weight="700">ADS1115</text>
+<text x="1068" y="326" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#243447" text-anchor="start">VIN</text>
+<text x="1068" y="366" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#243447" text-anchor="start">A0</text>
+<text x="1068" y="406" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#243447" text-anchor="start">A1</text>
+<polyline points="350,328 420,328 420,690 560,690" fill="none" stroke="#bd7313" stroke-width="3"/>
+<polyline points="350,383 390,383 390,790 560,790" fill="none" stroke="#334155" stroke-width="3"/>
+<text x="430" y="675" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#bd7313" text-anchor="start">DAC VA</text>
+<polyline points="1050,320 850,320 850,490 790,490" fill="none" stroke="#d23c30" stroke-width="3"/>
+<text x="870" y="309" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#d23c30" text-anchor="start">3.3 V supply</text>
+<polyline points="1050,360 942,360" fill="none" stroke="#c23559" stroke-width="3"/>
+<text x="934" y="366" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#c23559" text-anchor="end" font-weight="700">VOUT</text>
+<polyline points="1050,400 942,400" fill="none" stroke="#11825a" stroke-width="3"/>
+<text x="934" y="406" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#11825a" text-anchor="end" font-weight="700">VBIAS</text>
+<text x="1070" y="447" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#243447" text-anchor="start">ADDR</text>
+<text x="1235" y="447" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#243447" text-anchor="start">GND</text>
+<polyline points="1120,441 1222,441" fill="none" stroke="#334155" stroke-width="3"/>
+<text x="1200" y="492" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#243447" text-anchor="middle">Short ADDR–GND jumper → address 0x48</text>
+<rect x="560" y="452" width="230" height="377" rx="8" fill="#e7edf2" stroke="#334155" stroke-width="2"/>
+<polyline points="653,453 653,470 697,470 697,453" fill="none" stroke="#334155" stroke-width="2"/>
+<text x="675" y="548" font-family="Segoe UI,Arial,sans-serif" font-size="23" fill="#243447" text-anchor="middle" font-weight="700">MCP6002</text>
+<text x="675" y="577" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#243447" text-anchor="middle">DIP-8 socket</text>
+<text x="574" y="496" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#243447" text-anchor="start" font-weight="700">1</text>
+<text x="604" y="496" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#243447" text-anchor="start">OUT A</text>
+<text x="574" y="596" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#243447" text-anchor="start" font-weight="700">2</text>
+<text x="604" y="596" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#243447" text-anchor="start">IN A−</text>
+<text x="574" y="696" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#243447" text-anchor="start" font-weight="700">3</text>
+<text x="604" y="696" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#243447" text-anchor="start">IN A+</text>
+<text x="574" y="796" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#243447" text-anchor="start" font-weight="700">4</text>
+<text x="604" y="796" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#243447" text-anchor="start">VSS</text>
+<text x="776" y="496" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#243447" text-anchor="end" font-weight="700">8</text>
+<text x="748" y="496" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#243447" text-anchor="end">VDD</text>
+<text x="776" y="596" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#243447" text-anchor="end" font-weight="700">7</text>
+<text x="748" y="596" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#243447" text-anchor="end">OUT B</text>
+<text x="776" y="696" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#243447" text-anchor="end" font-weight="700">6</text>
+<text x="748" y="696" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#243447" text-anchor="end">IN B−</text>
+<text x="776" y="796" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#243447" text-anchor="end" font-weight="700">5</text>
+<text x="748" y="796" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#243447" text-anchor="end">IN B+</text>
+<polyline points="560,490 505,490 505,590 560,590" fill="none" stroke="#11825a" stroke-width="3"/>
+<circle cx="505" cy="490" r="5" fill="#11825a"/>
+<polyline points="505,490 462,490" fill="none" stroke="#11825a" stroke-width="3"/>
+<text x="448" y="481" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#11825a" text-anchor="end" font-weight="700">VBIAS</text>
+<polyline points="790,790 850,790" fill="none" stroke="#11825a" stroke-width="3"/>
+<text x="860" y="796" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#11825a" text-anchor="start" font-weight="700">VBIAS</text>
+<polyline points="790,590 1090,590" fill="none" stroke="#c23559" stroke-width="3"/>
+<polyline points="790,690 1230,690" fill="none" stroke="#7544a7" stroke-width="3"/>
+<polyline points="900,590 900,550" fill="none" stroke="#c23559" stroke-width="3"/>
+<text x="900" y="535" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#c23559" text-anchor="middle" font-weight="700">VOUT</text>
+<circle cx="900" cy="590" r="5" fill="#c23559"/>
+<circle cx="950" cy="590" r="5" fill="#c23559"/>
+<circle cx="950" cy="690" r="5" fill="#7544a7"/>
+<circle cx="1090" cy="590" r="5" fill="#c23559"/>
+<circle cx="1090" cy="690" r="5" fill="#7544a7"/>
+<polyline points="950,590 950,612" fill="none" stroke="#c23559" stroke-width="3"/>
+<rect x="939" y="612" width="22" height="56" rx="0" fill="#f4e1be" stroke="#936d31" stroke-width="2"/>
+<polyline points="950,668 950,690" fill="none" stroke="#7544a7" stroke-width="3"/>
+<text x="930" y="630" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#243447" text-anchor="end">R1</text>
+<text x="930" y="654" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#243447" text-anchor="end">1 MΩ</text>
+<polyline points="1090,590 1090,630" fill="none" stroke="#c23559" stroke-width="3"/>
+<polyline points="1072,630 1108,630" fill="none" stroke="#334155" stroke-width="3"/>
+<polyline points="1072,644 1108,644" fill="none" stroke="#334155" stroke-width="3"/>
+<polyline points="1090,644 1090,690" fill="none" stroke="#7544a7" stroke-width="3"/>
+<text x="1120" y="621" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#243447" text-anchor="start">C1</text>
+<text x="1120" y="650" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#243447" text-anchor="start">100 nF*</text>
+<polyline points="1230,690 1230,730" fill="none" stroke="#7544a7" stroke-width="3"/>
+<rect x="1203" y="730" width="54" height="66" rx="2" fill="#f8eddb" stroke="#ab7938" stroke-width="2"/>
+<polyline points="1230,796 1230,850" fill="none" stroke="#334155" stroke-width="3"/>
+<polyline points="1230,850 1230,862" fill="none" stroke="#334155" stroke-width="3"/>
+<polyline points="1215,862 1245,862" fill="none" stroke="#334155" stroke-width="3"/>
+<polyline points="1220,869 1240,869" fill="none" stroke="#334155" stroke-width="3"/>
+<polyline points="1225,876 1235,876" fill="none" stroke="#334155" stroke-width="3"/>
+<text x="1300" y="735" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#7544a7" text-anchor="start">Clamp 1</text>
+<text x="1300" y="810" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#243447" text-anchor="start">Clamp 2</text>
+<text x="1185" y="760" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#243447" text-anchor="end" font-weight="700">SENSOR</text>
+<text x="1230" y="906" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#243447" text-anchor="middle">Common GND</text>
+<text x="807" y="717" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#7544a7" text-anchor="start">Pin-6 junction</text>
+<rect x="70" y="877" width="910" height="145" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+<text x="93" y="908" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#243447" text-anchor="start" font-weight="700">C2 — 100 nF supply decoupling, physically beside the MCP6002 socket</text>
+<polyline points="385,954 520,954" fill="none" stroke="#d23c30" stroke-width="3"/>
+<polyline points="520,935 520,973" fill="none" stroke="#334155" stroke-width="3"/>
+<polyline points="536,935 536,973" fill="none" stroke="#334155" stroke-width="3"/>
+<polyline points="536,954 690,954" fill="none" stroke="#334155" stroke-width="3"/>
+<text x="365" y="960" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#d23c30" text-anchor="end">Pin 8 / 3.3 V</text>
+<text x="710" y="960" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#243447" text-anchor="start">Pin 4 / GND</text>
+<text x="93" y="998" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#243447" text-anchor="start">Ground is shared through QT cables; connect the sensor return to this common GND.</text>
+<text x="45" y="1056" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#243447" text-anchor="start">Matching VBIAS / VOUT labels are connected nets. Dots mark junctions. *C1 value follows the project V1 schematic.</text>
+</svg>
