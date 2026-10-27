@@ -21,7 +21,7 @@ extern "C" {
 
 #define SOOT_RESISTANCE_VERSION_MAJOR 0u
 #define SOOT_RESISTANCE_VERSION_MINOR 2u
-#define SOOT_RESISTANCE_VERSION_PATCH 0u
+#define SOOT_RESISTANCE_VERSION_PATCH 1u
 #define SOOT_RESISTANCE_RANGE_COUNT 4u
 
 typedef enum {
@@ -86,7 +86,7 @@ void SootResistance_configDefaults(SootResistance_Config *config,
                                    I2C_Handle sharedI2cHandle);
 
 /*
- * Select S1, configure MCP4728 channel A, and verify ADS1115 response.
+ * Select S4, configure MCP4728 channel A, and verify ADS1115 response.
  * Call from a TI-RTOS Task context after the shared I2C bus is opened.
  */
 SootResistance_Status SootResistance_init(
@@ -98,7 +98,7 @@ SootResistance_Status SootResistance_setBias(SootResistance *device);
 
 /*
  * Automatically select feedback, average ADC conversions, calculate resistance.
- * Starts at S1 on every call; increases gain while delta is below 0.1 V.
+ * Starts at S4 on every call; steps down toward S1 only on saturation.
  * Consume resistance/current only on OK. Failed calls clear resistance.
  * The measurement structure is populated even for most analog range errors,
  * allowing a debugger or caller to inspect the voltages that caused the error.

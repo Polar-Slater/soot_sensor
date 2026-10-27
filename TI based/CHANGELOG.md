@@ -2,6 +2,20 @@
 
 All notable changes to this handoff package are recorded here.
 
+## 0.2.1 - 2026-10-27
+
+- Initialize feedback at S4 (100 kohm) and start every read at the highest
+  resistance. On saturation, descend through S3 (10 kohm), S2 (1 kohm), and
+  S1 (100 ohm), settling and acquiring fresh data at each step.
+- Keep the first nonsaturated valid range; return low-signal/open and other
+  faults without reducing gain. Report saturation if S1 is also saturated.
+- Remove the previous 0.1 V upward-ranging target and single fallback.
+- Give invalid bias priority over saturation so it stops the range scan.
+- Update range-order, selection, and fault regression tests and documentation.
+- Host regression tests and integration-example compilation pass with Zig 0.13.0
+  C99 and strict warnings; `git diff --check` passes.
+- Physical settling/recovery checks and final CCS validation remain required.
+
 ## 0.2.0 - 2026-10-27
 
 - Replace fixed 1 Mohm feedback with ADG728 S1..S4 selection at `0x4C`:

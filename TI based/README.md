@@ -1,6 +1,6 @@
 # CC2650 soot-sensor resistance module
 
-Version: **0.2.0**
+Version: **0.2.1**
 
 This folder contains the C code needed for a TI CC2650 SensorTag to control the
 MCP4728, ADG728, and ADS1115 in the soot-sensor analog circuit and calculate the
@@ -106,25 +106,32 @@ sensor resistance = Rfeedback * A1 / (A0 - A1)
 `Rfeedback` is the selected resistor plus its optional switch correction. Each
 range evaluation averages 16 A1 conversions and 16 A0-A1 conversions.
 
-Every read starts at S1 (100 ohms), then increases to S2, S3, and S4 while
-delta is below 0.100 V. Only one channel is enabled, using masks `0x01`, `0x02`,
-`0x04`, or `0x08`, with register readback checked. Switching uses one byte with
+Initialization and every read start at S4 (100 kohms). If the ADC saturates or
+the output reaches the analog rail cutoff (3.25 V at the default 3.3 V supply),
+the driver steps down to S3 (10 kohms), S2 (1 kohm), then S1 (100 ohms), stopping
+at the first valid, nonsaturated result. Only one channel is enabled, using
+masks `0x08`, `0x04`, `0x02`, then `0x01`, with register readback checked.
+Switching uses one byte with
 no register pointer. The ADG728 provides break-before-make switching.
 The driver waits 100 ms after each selection and bias update. With the retained
 0.1 uF capacitor, this is ten RC time constants at nominal 100 kohms; increase
 `feedback_settle_ms` if circuit changes or bench settling tests require it.
 
-If a higher range saturates, the driver steps back once and takes fresh data.
-There are at most four forward evaluations plus one fallback; it never loops
-indefinitely. A small signal on S4 is still valid if above the minimum delta
-of 0.5 mV; otherwise the result is `OPEN_OR_OUT_OF_RANGE`. Saturation on S1
-is reported as an error. Communication, invalid-bias, and conversion faults
-stop the read. Failed reads clear `resistance_ohms`; only consume numeric
+Each step takes fresh data after settling. There are at most four evaluations;
+the scan never loops indefinitely or increases gain during a read. A small
+signal on S4 is still valid if above the minimum delta of 0.5 mV; otherwise
+the result is `OPEN_OR_OUT_OF_RANGE`, with no further range changes. Lower gain
+cannot improve a weak signal. Saturation on S1 is reported as an error.
+Communication, invalid-bias, and conversion faults stop the read; invalid bias
+takes priority over saturation. Failed reads clear `resistance_ohms`; only consume numeric
 resistance/current when status is `OK`. Results include `feedback_channel`
 (1..4), effective `feedback_resistance_ohms`, bias, output, and delta voltages.
 
 At default averaging, a scan can take roughly 1.5 seconds plus scheduler/I2C
-overhead. Feedback is selected before programming bias during initialization.
+overhead. S4 feedback is selected before programming bias during initialization.
+Low-resistance sensors may saturate the output at the start of a scan; sensor
+bias is not guaranteed while saturated. Bench-check recovery after descending
+to a valid range; the settling delay is not a substitute for hardware validation.
 At power-up the ADG728 has all channels off: the existing circuit has no DC
 feedback until initialization, so startup transients still need bench checking.
 
@@ -258,8 +265,9 @@ and XDCtools versions rather than migrating the whole project during this port.
 ## Validation required on hardware
 
 Host regression tests compile the actual driver against simulated I2C/TI-RTOS
-interfaces, including all four ranges, calibration, changing loads, settling,
-fallback, open/saturated inputs, and communication/reset failures:
+interfaces, including the descending channel order, all four ranges, calibration,
+changing loads, settling, cutoff boundaries, open/saturated inputs, and
+communication/reset failures:
 
 ```text
 python tests/run_host_tests.py --compiler gcc
@@ -280,8 +288,9 @@ configuration. During handoff, perform these checks in order:
    MCP6002 pins 1, 3, and 5.
 4. With clamps open, confirm `OPEN_OR_OUT_OF_RANGE` rather than a random value.
 5. Test known sensor resistors of 1 kohm, 10 kohm, 100 kohm, and 1 Mohm. Expect
-   roughly 0.1 V delta at nominal matching feedback decades; near a boundary,
-   tolerances/ADC quantization may select the next channel. Log channel, effective
+   S2, S3, S4, and S4 respectively, with nominal deltas of 1 V, 1 V, 1 V,
+   and 0.1 V. Near the saturation cutoff, tolerances/ADC quantization may select
+   the next lower channel. Log channel, effective
    feedback, raw codes, bias/delta voltages, and calculated resistance; compare
    against a multimeter. Confirm switch correction especially on S1.
 6. Check startup, range-change settling, changing loads, saturation, and switch

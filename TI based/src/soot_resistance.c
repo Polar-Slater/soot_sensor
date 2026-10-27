@@ -55,7 +55,6 @@
 #define ADS1115_READY_POLL_DELAY_MS         1u
 
 #define SOOT_DEFAULT_FEEDBACK_SETTLE_MS     100u
-#define SOOT_AUTORANGE_TARGET_DELTA_VOLTS   0.100f
 #define SOOT_DEFAULT_BIAS_VOLTS             1.000f
 #define SOOT_DEFAULT_MIN_BIAS_VOLTS         0.800f
 #define SOOT_DEFAULT_MAX_BIAS_VOLTS         1.200f
@@ -310,7 +309,8 @@ static bool validConfig(const SootResistance_Config *config)
         !(config->maximum_valid_bias_volts < config->analog_supply_volts -
           SOOT_OUTPUT_RAIL_MARGIN_VOLTS) ||
         !(config->minimum_valid_delta_volts > 0.0f) ||
-        !(config->minimum_valid_delta_volts < SOOT_AUTORANGE_TARGET_DELTA_VOLTS) ||
+        !(config->minimum_valid_delta_volts < config->analog_supply_volts -
+          config->maximum_valid_bias_volts - SOOT_OUTPUT_RAIL_MARGIN_VOLTS) ||
         (config->feedback_settle_ms == 0u) ||
         (config->feedback_settle_ms > 60000u) ||
         (config->sample_count == 0u) ||
@@ -349,8 +349,8 @@ SootResistance_Status SootResistance_init(
 
     device->config = *config;
 
-    /* Establish resistive feedback before applying the requested bias. */
-    status = selectFeedback(device, 0u);
+    /* Start with the highest feedback resistance before applying bias. */
+    status = selectFeedback(device, SOOT_RESISTANCE_RANGE_COUNT - 1u);
     if (status != SOOT_RESISTANCE_STATUS_OK) {
         return status;
     }
@@ -460,18 +460,18 @@ static SootResistance_Status readSelectedFeedback(
     measurement->current_amps = measurement->delta_volts /
                                 measurement->feedback_resistance_ohms;
 
-    if (saturated ||
-        (measurement->output_volts >=
-         (device->config.analog_supply_volts -
-          SOOT_OUTPUT_RAIL_MARGIN_VOLTS))) {
-        return SOOT_RESISTANCE_STATUS_ADC_SATURATED;
-    }
-
     if ((measurement->bias_volts <
          device->config.minimum_valid_bias_volts) ||
         (measurement->bias_volts >
          device->config.maximum_valid_bias_volts)) {
         return SOOT_RESISTANCE_STATUS_BIAS_OUT_OF_RANGE;
+    }
+
+    if (saturated ||
+        (measurement->output_volts >=
+         (device->config.analog_supply_volts -
+          SOOT_OUTPUT_RAIL_MARGIN_VOLTS))) {
+        return SOOT_RESISTANCE_STATUS_ADC_SATURATED;
     }
 
     /*
@@ -516,29 +516,18 @@ SootResistance_Status SootResistance_read(
         return SOOT_RESISTANCE_STATUS_NOT_INITIALIZED;
     }
 
-    /* A bounded scan from lowest gain avoids relying on yesterday's sensor. */
-    for (range = 0u; range < SOOT_RESISTANCE_RANGE_COUNT; ++range) {
+    /* Try S4, S3, S2, S1; retain the highest gain that is not saturated. */
+    range = SOOT_RESISTANCE_RANGE_COUNT;
+    while (range > 0u) {
+        --range;
         memset(measurement, 0, sizeof(*measurement));
         status = selectFeedback(device, range);
         if (status != SOOT_RESISTANCE_STATUS_OK) {
             return status;
         }
         status = readSelectedFeedback(device, measurement);
-        if ((status == SOOT_RESISTANCE_STATUS_ADC_SATURATED) && (range > 0u)) {
-            /* Sensor may have changed during the scan. Reacquire at lower gain. */
-            memset(measurement, 0, sizeof(*measurement));
-            status = selectFeedback(device, (uint8_t)(range - 1u));
-            if (status != SOOT_RESISTANCE_STATUS_OK) {
-                return status;
-            }
-            return readSelectedFeedback(device, measurement);
-        }
-        if ((status != SOOT_RESISTANCE_STATUS_OK) &&
-            (status != SOOT_RESISTANCE_STATUS_OPEN_OR_OUT_OF_RANGE)) {
-            return status;
-        }
-        if ((measurement->delta_volts >= SOOT_AUTORANGE_TARGET_DELTA_VOLTS) ||
-            (range == SOOT_RESISTANCE_RANGE_COUNT - 1u)) {
+        /* Low signals cannot improve at lower gain; other faults stop the scan. */
+        if ((status != SOOT_RESISTANCE_STATUS_ADC_SATURATED) || (range == 0u)) {
             return status;
         }
     }

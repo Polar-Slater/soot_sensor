@@ -27,6 +27,8 @@ existing wireless application.
 - Feedback uses ADG728 D at pin 6; S1..S4 connect through 100 ohm, 1 kohm,
   10 kohm, and 100 kohm resistors respectively to pin 7. S5..S8 are unused.
 - ADG728 default seven-bit address is `0x4C`; enable exactly one channel.
+- Initialize and start every measurement at S4 (100 kohm); step down through
+  S3, S2, S1 only when saturated, settling and reacquiring at each selection.
 - Retain the 0.1 uF feedback capacitor directly from pin 7 to pin 6.
 - Calibrated resistor and optional series-switch values live at the start of
   src/soot_resistance.c; use the selected effective resistance in calculations.
