@@ -1,5 +1,18 @@
+/* Calibration inputs in ohms: replace labels with measured resistor values. */
+#define SOOT_FEEDBACK_S1_OHMS               100.0f
+#define SOOT_FEEDBACK_S2_OHMS               1000.0f
+#define SOOT_FEEDBACK_S3_OHMS               10000.0f
+#define SOOT_FEEDBACK_S4_OHMS               100000.0f
+
+/* Optional measured series-switch corrections; zero means uncalibrated. */
+#define SOOT_SWITCH_S1_OHMS                 0.0f
+#define SOOT_SWITCH_S2_OHMS                 0.0f
+#define SOOT_SWITCH_S3_OHMS                 0.0f
+#define SOOT_SWITCH_S4_OHMS                 0.0f
+
 #include "soot_resistance.h"
 
+#include <float.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -9,6 +22,7 @@
 /* Default seven-bit addresses. */
 #define MCP4728_DEFAULT_ADDRESS             0x60u
 #define ADS1115_DEFAULT_ADDRESS             0x48u
+#define ADG728_DEFAULT_ADDRESS              0x4Cu
 
 /* MCP4728 settings used for channel A. */
 #define MCP4728_INTERNAL_REFERENCE_VOLTS    2.048f
@@ -40,7 +54,8 @@
 #define ADS1115_READY_POLL_LIMIT            25u
 #define ADS1115_READY_POLL_DELAY_MS         1u
 
-#define SOOT_DEFAULT_FEEDBACK_OHMS          1000411.0f
+#define SOOT_DEFAULT_FEEDBACK_SETTLE_MS     100u
+#define SOOT_AUTORANGE_TARGET_DELTA_VOLTS   0.100f
 #define SOOT_DEFAULT_BIAS_VOLTS             1.000f
 #define SOOT_DEFAULT_MIN_BIAS_VOLTS         0.800f
 #define SOOT_DEFAULT_MAX_BIAS_VOLTS         1.200f
@@ -81,6 +96,51 @@ static bool i2cTransfer(I2C_Handle handle,
     transaction.readCount = readCount;
 
     return I2C_transfer(handle, &transaction);
+}
+
+static float effectiveFeedback(const SootResistance *device, uint8_t range)
+{
+    return device->config.feedback_resistance_ohms[range] +
+           device->config.switch_resistance_ohms[range];
+}
+
+static SootResistance_Status verifyFeedback(SootResistance *device,
+                                             uint8_t mask)
+{
+    uint8_t readback;
+
+    if (!i2cTransfer(device->config.i2c, device->config.adg728_address,
+                     NULL, 0u, &readback, 1u)) {
+        device->initialized = false; /* Feedback state is unknown; reinitialize. */
+        return SOOT_RESISTANCE_STATUS_SWITCH_I2C_ERROR;
+    }
+    if (readback != mask) {
+        device->initialized = false;
+        return SOOT_RESISTANCE_STATUS_SWITCH_STATE_ERROR;
+    }
+    return SOOT_RESISTANCE_STATUS_OK;
+}
+
+static SootResistance_Status selectFeedback(SootResistance *device,
+                                             uint8_t range)
+{
+    uint8_t mask = (uint8_t)(1u << range);
+    SootResistance_Status status;
+
+    /* One data byte, no register pointer. Hardware provides break-before-make. */
+    if (!i2cTransfer(device->config.i2c, device->config.adg728_address,
+                     &mask, 1u, NULL, 0u)) {
+        device->initialized = false;
+        return SOOT_RESISTANCE_STATUS_SWITCH_I2C_ERROR;
+    }
+    status = verifyFeedback(device, mask);
+    if (status != SOOT_RESISTANCE_STATUS_OK) {
+        return status;
+    }
+    device->active_range = range;
+    /* 100 ms is 10 RC time constants at 100 kohm with the retained 0.1 uF. */
+    sleepMilliseconds(device->config.feedback_settle_ms);
+    return SOOT_RESISTANCE_STATUS_OK;
 }
 
 static bool ads1115ReadRegister(SootResistance *device,
@@ -211,13 +271,65 @@ void SootResistance_configDefaults(SootResistance_Config *config,
     config->i2c = sharedI2cHandle;
     config->mcp4728_address = MCP4728_DEFAULT_ADDRESS;
     config->ads1115_address = ADS1115_DEFAULT_ADDRESS;
-    config->feedback_resistance_ohms = SOOT_DEFAULT_FEEDBACK_OHMS;
+    config->adg728_address = ADG728_DEFAULT_ADDRESS;
+    config->feedback_resistance_ohms[0] = SOOT_FEEDBACK_S1_OHMS;
+    config->feedback_resistance_ohms[1] = SOOT_FEEDBACK_S2_OHMS;
+    config->feedback_resistance_ohms[2] = SOOT_FEEDBACK_S3_OHMS;
+    config->feedback_resistance_ohms[3] = SOOT_FEEDBACK_S4_OHMS;
+    config->switch_resistance_ohms[0] = SOOT_SWITCH_S1_OHMS;
+    config->switch_resistance_ohms[1] = SOOT_SWITCH_S2_OHMS;
+    config->switch_resistance_ohms[2] = SOOT_SWITCH_S3_OHMS;
+    config->switch_resistance_ohms[3] = SOOT_SWITCH_S4_OHMS;
+    config->feedback_settle_ms = SOOT_DEFAULT_FEEDBACK_SETTLE_MS;
     config->requested_bias_volts = SOOT_DEFAULT_BIAS_VOLTS;
     config->minimum_valid_bias_volts = SOOT_DEFAULT_MIN_BIAS_VOLTS;
     config->maximum_valid_bias_volts = SOOT_DEFAULT_MAX_BIAS_VOLTS;
     config->minimum_valid_delta_volts = SOOT_DEFAULT_MIN_DELTA_VOLTS;
     config->analog_supply_volts = SOOT_DEFAULT_ANALOG_SUPPLY_VOLTS;
     config->sample_count = SOOT_DEFAULT_SAMPLE_COUNT;
+}
+
+static bool validConfig(const SootResistance_Config *config)
+{
+    uint8_t range;
+    float previous = 0.0f;
+    float effective;
+
+    /* Positive bounded comparisons also reject NaN and infinity. */
+    if ((config == NULL) || (config->i2c == NULL) ||
+        (config->adg728_address < 0x4Cu) || (config->adg728_address > 0x4Fu) ||
+        (config->mcp4728_address > 0x7Fu) ||
+        (config->ads1115_address > 0x7Fu) ||
+        !(config->requested_bias_volts > 0.0f) ||
+        !(config->requested_bias_volts < MCP4728_INTERNAL_REFERENCE_VOLTS) ||
+        !(config->minimum_valid_bias_volts > 0.0f) ||
+        !(config->minimum_valid_bias_volts <= config->requested_bias_volts) ||
+        !(config->maximum_valid_bias_volts >= config->requested_bias_volts) ||
+        !(config->analog_supply_volts <= 3.6f) ||
+        !(config->analog_supply_volts >= 2.7f) ||
+        !(config->maximum_valid_bias_volts < config->analog_supply_volts -
+          SOOT_OUTPUT_RAIL_MARGIN_VOLTS) ||
+        !(config->minimum_valid_delta_volts > 0.0f) ||
+        !(config->minimum_valid_delta_volts < SOOT_AUTORANGE_TARGET_DELTA_VOLTS) ||
+        (config->feedback_settle_ms == 0u) ||
+        (config->feedback_settle_ms > 60000u) ||
+        (config->sample_count == 0u) ||
+        (config->sample_count > SOOT_MAX_SAMPLE_COUNT)) {
+        return false;
+    }
+    for (range = 0u; range < SOOT_RESISTANCE_RANGE_COUNT; ++range) {
+        if (!(config->feedback_resistance_ohms[range] > 0.0f) ||
+            !(config->switch_resistance_ohms[range] >= 0.0f)) {
+            return false;
+        }
+        effective = config->feedback_resistance_ohms[range] +
+                    config->switch_resistance_ohms[range];
+        if (!(effective > previous) || !(effective <= FLT_MAX / 10000.0f)) {
+            return false;
+        }
+        previous = effective;
+    }
+    return true;
 }
 
 SootResistance_Status SootResistance_init(
@@ -227,22 +339,26 @@ SootResistance_Status SootResistance_init(
     uint16_t adsConfig;
     SootResistance_Status status;
 
-    if ((device == NULL) || (config == NULL) || (config->i2c == NULL) ||
-        (config->feedback_resistance_ohms <= 0.0f) ||
-        (config->requested_bias_volts <= 0.0f) ||
-        (config->requested_bias_volts >= MCP4728_INTERNAL_REFERENCE_VOLTS) ||
-        (config->sample_count == 0u) ||
-        (config->sample_count > SOOT_MAX_SAMPLE_COUNT)) {
+    if (device == NULL) {
+        return SOOT_RESISTANCE_STATUS_INVALID_ARGUMENT;
+    }
+    device->initialized = false;
+    if (!validConfig(config)) {
         return SOOT_RESISTANCE_STATUS_INVALID_ARGUMENT;
     }
 
-    memset(device, 0, sizeof(*device));
     device->config = *config;
 
+    /* Establish resistive feedback before applying the requested bias. */
+    status = selectFeedback(device, 0u);
+    if (status != SOOT_RESISTANCE_STATUS_OK) {
+        return status;
+    }
     status = writeMcp4728ChannelA(device);
     if (status != SOOT_RESISTANCE_STATUS_OK) {
         return status;
     }
+    sleepMilliseconds(device->config.feedback_settle_ms);
 
     /* Reading the configuration register verifies the ADS1115 address/ACK. */
     if (!ads1115ReadRegister(device, ADS1115_REG_CONFIG, &adsConfig)) {
@@ -255,6 +371,7 @@ SootResistance_Status SootResistance_init(
 
 SootResistance_Status SootResistance_setBias(SootResistance *device)
 {
+    SootResistance_Status status;
     if (device == NULL) {
         return SOOT_RESISTANCE_STATUS_INVALID_ARGUMENT;
     }
@@ -262,10 +379,16 @@ SootResistance_Status SootResistance_setBias(SootResistance *device)
         return SOOT_RESISTANCE_STATUS_NOT_INITIALIZED;
     }
 
-    return writeMcp4728ChannelA(device);
+    status = writeMcp4728ChannelA(device);
+    if (status == SOOT_RESISTANCE_STATUS_OK) {
+        sleepMilliseconds(device->config.feedback_settle_ms);
+    } else {
+        device->initialized = false;
+    }
+    return status;
 }
 
-SootResistance_Status SootResistance_read(
+static SootResistance_Status readSelectedFeedback(
     SootResistance *device,
     SootResistance_Measurement *measurement)
 {
@@ -285,6 +408,9 @@ SootResistance_Status SootResistance_read(
     }
 
     memset(measurement, 0, sizeof(*measurement));
+    measurement->feedback_channel = (uint8_t)(device->active_range + 1u);
+    measurement->feedback_resistance_ohms =
+        effectiveFeedback(device, device->active_range);
     biasCodeSum = 0;
     deltaCodeSum = 0;
     saturated = false;
@@ -315,6 +441,12 @@ SootResistance_Status SootResistance_read(
         }
     }
 
+    /* Detect a switch reset/state change during the conversion sequence. */
+    status = verifyFeedback(device, (uint8_t)(1u << device->active_range));
+    if (status != SOOT_RESISTANCE_STATUS_OK) {
+        return status;
+    }
+
     measurement->average_bias_code =
         (int16_t)(biasCodeSum / (int32_t)device->config.sample_count);
     measurement->average_delta_code =
@@ -326,7 +458,7 @@ SootResistance_Status SootResistance_read(
     measurement->output_volts = measurement->bias_volts +
                                 measurement->delta_volts;
     measurement->current_amps = measurement->delta_volts /
-                                device->config.feedback_resistance_ohms;
+                                measurement->feedback_resistance_ohms;
 
     if (saturated ||
         (measurement->output_volts >=
@@ -359,11 +491,58 @@ SootResistance_Status SootResistance_read(
      * Therefore R_sensor = R_feedback * V_bias / (V_output - V_bias).
      */
     measurement->resistance_ohms =
-        device->config.feedback_resistance_ohms *
+        measurement->feedback_resistance_ohms *
         measurement->bias_volts /
         measurement->delta_volts;
 
     return SOOT_RESISTANCE_STATUS_OK;
+}
+
+SootResistance_Status SootResistance_read(
+    SootResistance *device,
+    SootResistance_Measurement *measurement)
+{
+    uint8_t range;
+    SootResistance_Status status;
+
+    if (measurement == NULL) {
+        return SOOT_RESISTANCE_STATUS_INVALID_ARGUMENT;
+    }
+    memset(measurement, 0, sizeof(*measurement));
+    if (device == NULL) {
+        return SOOT_RESISTANCE_STATUS_INVALID_ARGUMENT;
+    }
+    if (!device->initialized) {
+        return SOOT_RESISTANCE_STATUS_NOT_INITIALIZED;
+    }
+
+    /* A bounded scan from lowest gain avoids relying on yesterday's sensor. */
+    for (range = 0u; range < SOOT_RESISTANCE_RANGE_COUNT; ++range) {
+        memset(measurement, 0, sizeof(*measurement));
+        status = selectFeedback(device, range);
+        if (status != SOOT_RESISTANCE_STATUS_OK) {
+            return status;
+        }
+        status = readSelectedFeedback(device, measurement);
+        if ((status == SOOT_RESISTANCE_STATUS_ADC_SATURATED) && (range > 0u)) {
+            /* Sensor may have changed during the scan. Reacquire at lower gain. */
+            memset(measurement, 0, sizeof(*measurement));
+            status = selectFeedback(device, (uint8_t)(range - 1u));
+            if (status != SOOT_RESISTANCE_STATUS_OK) {
+                return status;
+            }
+            return readSelectedFeedback(device, measurement);
+        }
+        if ((status != SOOT_RESISTANCE_STATUS_OK) &&
+            (status != SOOT_RESISTANCE_STATUS_OPEN_OR_OUT_OF_RANGE)) {
+            return status;
+        }
+        if ((measurement->delta_volts >= SOOT_AUTORANGE_TARGET_DELTA_VOLTS) ||
+            (range == SOOT_RESISTANCE_RANGE_COUNT - 1u)) {
+            return status;
+        }
+    }
+    return SOOT_RESISTANCE_STATUS_OPEN_OR_OUT_OF_RANGE;
 }
 
 const char *SootResistance_statusString(SootResistance_Status status)
@@ -387,6 +566,10 @@ const char *SootResistance_statusString(SootResistance_Status status)
         return "BIAS_OUT_OF_RANGE";
     case SOOT_RESISTANCE_STATUS_OPEN_OR_OUT_OF_RANGE:
         return "OPEN_OR_OUT_OF_RANGE";
+    case SOOT_RESISTANCE_STATUS_SWITCH_I2C_ERROR:
+        return "SWITCH_I2C_ERROR";
+    case SOOT_RESISTANCE_STATUS_SWITCH_STATE_ERROR:
+        return "SWITCH_STATE_ERROR";
     default:
         return "UNKNOWN_STATUS";
     }
