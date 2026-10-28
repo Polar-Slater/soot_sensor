@@ -48,15 +48,25 @@ arduino-cli compile --fqbn esp32:esp32:esp32 --library "." "examples/ResistanceM
 
 Power the external circuit from **3.3 V**, with a common ground. Use the
 DevKit's regulated 3V3 pin, not its 5V/VIN pin, for this circuit's supply.
-Connect through breakout power pins with a verified cable pinout; STEMMA QT
-connector order is not the same as an arbitrary DevKit header order.
+The MCP4728, ADS1115, and ADG728 are connected together with **STEMMA QT cables**.
+Those cables already carry **3.3 V, GND, SDA, and SCL** between the boards, so
+omit separate wires duplicating those four connections between breakouts.
 
-| ESP32 DevKit/WROOM | External circuit |
+```text
+ESP32 -- four-wire connection --> MCP4728 -- QT cable --> ADS1115 -- QT cable --> ADG728
+```
+
+Connect the ESP32 to the first board in the QT chain only. Use a QT-to-header
+cable or the board's power/I2C header pins, checking the cable pinout against
+the DevKit labels. The board order may change; electrically all three remain
+in parallel on the same I2C bus.
+
+| ESP32 DevKit/WROOM | First board / QT chain connection |
 | --- | --- |
-| GPIO 21 (SDA) | MCP4728 SDA, ADS1115 SDA, ADG728 SDA |
-| GPIO 22 (SCL) | MCP4728 SCL, ADS1115 SCL, ADG728 SCL |
-| 3V3 | MCP4728 VCC/VIN, ADS1115 VIN, ADG728 VIN, MCP6002 pin 8 |
-| GND | All breakout grounds, ADS1115 ADDR, MCP6002 pin 4, sensor clamp 2 |
+| GPIO 21 (SDA) | SDA |
+| GPIO 22 (SCL) | SCL |
+| 3V3 | VCC/VIN / QT power |
+| GND | GND |
 
 All three I2C devices share the same two wires at **100 kHz**. Breakout pull-ups
 must go to 3.3 V. GPIO 21/22 are the default for this classic ESP32 example;
@@ -70,8 +80,15 @@ verify pin assignments before using a different ESP32 variant.
 
 ## Analog connections
 
+These connections are still required: QT cables do not carry DAC VA, ADC A0/A1,
+switch D/S1..S8, or the sensor/op-amp signals. Take 3.3 V and GND for the analog
+circuit from the powered breakout chain's header pins or the same ESP32 supply.
+
 | Connection | Purpose |
 | --- | --- |
+| Shared 3.3 V to MCP6002 pin 8 | Op-amp supply |
+| Shared GND to MCP6002 pin 4 | Op-amp ground |
+| ADS1115 ADDR held at GND | Select address 0x48; retain the board's ground strap/default |
 | MCP4728 VA to MCP6002 pin 3 | Nominal 1.000 V bias source |
 | MCP6002 pin 1 to pins 2 and 5 | Buffered bias and TIA reference |
 | ADS1115 A1 to MCP6002 pin 1 | Buffered bias measurement |
