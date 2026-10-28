@@ -2,6 +2,12 @@
 
 This package has its own version sequence, independent of `TI based`.
 
+## Unreleased
+
+- Clarify the STEMMA QT chain for shared power/I2C: one ESP32 connection,
+  with only the remaining analog and configuration wiring listed separately.
+  Documentation only; firmware remains version 0.1.0.
+
 ## 0.1.0 - 2026-10-28
 
 - Initial Arduino-ESP32 port of the acquisition behavior in TI version 0.2.1.
