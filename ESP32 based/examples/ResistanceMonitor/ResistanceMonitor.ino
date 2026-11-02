@@ -4,6 +4,7 @@ constexpr int SOOT_SDA_PIN = 21;
 constexpr int SOOT_SCL_PIN = 22;
 constexpr unsigned long SOOT_I2C_HZ = 100000;
 constexpr unsigned long SOOT_REPORT_PAUSE_MS = 1000;
+constexpr bool SOOT_CSV_OUTPUT = false; // true for CSV logging; false for Serial Monitor.
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -35,7 +36,12 @@ void setup()
     // Optional per-board calibration override before init:
     // config.feedback_resistance_ohms[0] = 99.98f;
 
-    Serial.println("status,channel,feedback_ohm,bias_code,delta_code,bias_V,delta_V,output_V,current_A,sensor_ohm");
+    if (SOOT_CSV_OUTPUT) {
+        Serial.println("status,channel,feedback_ohm,bias_code,delta_code,bias_V,delta_V,output_V,current_A,sensor_ohm");
+    } else {
+        Serial.println("Serial Monitor: 115200 baud. Readings appear automatically.");
+        Serial.println("Current and resistance are valid only when status is OK.");
+    }
 }
 
 void loop()
@@ -55,17 +61,37 @@ void loop()
 
     SootResistance_Measurement result = {};
     const SootResistance_Status status = SootResistance_read(&sensor, &result);
-    Serial.printf("%s,%u,%.3f,%d,%d,%.6f,%.6f,%.6f,",
-                  SootResistance_statusString(status),
-                  static_cast<unsigned>(result.feedback_channel),
-                  result.feedback_resistance_ohms,
-                  static_cast<int>(result.average_bias_code),
-                  static_cast<int>(result.average_delta_code),
-                  result.bias_volts, result.delta_volts, result.output_volts);
-    if (status == SOOT_RESISTANCE_STATUS_OK) {
-        Serial.printf("%.9g,%.3f\n", result.current_amps, result.resistance_ohms);
+    if (!SOOT_CSV_OUTPUT) {
+        Serial.println("----------------------------------------");
+        Serial.printf("Status: %s\n", SootResistance_statusString(status));
+        if (status == SOOT_RESISTANCE_STATUS_OK) {
+            Serial.printf("Sensor resistance: %.3f ohm\n", result.resistance_ohms);
+            Serial.printf("Sensor current: %.6f uA\n", result.current_amps * 1000000.0f);
+        } else {
+            Serial.println("Sensor resistance: NA\nSensor current: NA");
+            Serial.println("Diagnostic values below may be incomplete after a fault.");
+        }
+        Serial.printf("Feedback channel: %u (1..4; 0 = unavailable) | Feedback: %.3f ohm\n",
+                      static_cast<unsigned>(result.feedback_channel),
+                      result.feedback_resistance_ohms);
+        Serial.printf("Bias: %.6f V | Delta: %.6f V | Output: %.6f V\n",
+                      result.bias_volts, result.delta_volts, result.output_volts);
+        Serial.printf("ADC codes: bias=%d, delta=%d\n",
+                      static_cast<int>(result.average_bias_code),
+                      static_cast<int>(result.average_delta_code));
     } else {
-        Serial.println("NA,NA"); // Never publish failed reads as zero ohms.
+        Serial.printf("%s,%u,%.3f,%d,%d,%.6f,%.6f,%.6f,",
+                      SootResistance_statusString(status),
+                      static_cast<unsigned>(result.feedback_channel),
+                      result.feedback_resistance_ohms,
+                      static_cast<int>(result.average_bias_code),
+                      static_cast<int>(result.average_delta_code),
+                      result.bias_volts, result.delta_volts, result.output_volts);
+        if (status == SOOT_RESISTANCE_STATUS_OK) {
+            Serial.printf("%.9g,%.3f\n", result.current_amps, result.resistance_ohms);
+        } else {
+            Serial.println("NA,NA"); // Never publish failed reads as zero ohms.
+        }
     }
     // Acquisition adds up to about 1.5 s at default averaging, plus bus overhead.
     delay(SOOT_REPORT_PAUSE_MS);

@@ -26,10 +26,37 @@ are published; no separate or nested Git repository is needed.
    immediately inside it. Restart the IDE if the library does not appear.
 3. Open `examples/ResistanceMonitor/ResistanceMonitor.ino`, select **ESP32 Dev
    Module** and your board's serial port, then compile and upload.
-4. Open Serial Monitor at **115200 baud**. The example prints CSV diagnostics
-   including status, selected channel, feedback resistance, raw ADC codes,
-   voltages, current, and sensor resistance. Failed current/resistance values
-   print as `NA`.
+4. Open **Tools > Serial Monitor** and select **115200 baud**. The example prints
+   labeled readings automatically; no commands or line-ending setting are needed.
+   Failed current/resistance values print as `NA`.
+
+### Serial Monitor display
+
+The default display looks like this (illustrative values, not a hardware test):
+
+```text
+----------------------------------------
+Status: OK
+Sensor resistance: 100000.000 ohm
+Sensor current: 10.000000 uA
+Feedback channel: 4 (1..4; 0 = unavailable) | Feedback: 100000.000 ohm
+Bias: 1.000000 V | Delta: 1.000000 V | Output: 2.000000 V
+ADC codes: bias=8000, delta=8000
+```
+
+Current is displayed in microamps (`uA`). Each report is followed by a 1 second
+pause; acquisition adds time, so reports are not exactly 1 second apart.
+Open clamps normally report `OPEN_OR_OUT_OF_RANGE`. Only use current and
+resistance when the status is `OK`; other fields may be incomplete after a fault.
+Initialization failures report their status and retry every 5 seconds.
+
+For the original CSV output, set `SOOT_CSV_OUTPUT = true` at the top of the sketch
+and upload again. CSV retains its original columns and uses amps for `current_A`.
+The startup banner and initialization messages are text, not CSV data rows.
+
+If the monitor is blank, confirm the selected board/port, use a USB data cable,
+and press the board's reset/EN button with the monitor open. Garbled sketch
+output usually means the monitor baud rate does not match 115200.
 
 No third-party sensor libraries are required; only Arduino-ESP32's built-in
 Arduino and Wire APIs are used. Pins and reporting pause are editable at the

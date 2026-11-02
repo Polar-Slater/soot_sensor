@@ -4,6 +4,10 @@ This package has its own version sequence, independent of `TI based`.
 
 ## Unreleased
 
+- Default the Arduino example to labeled Serial Monitor readings at 115200 baud,
+  including resistance in ohms, current in microamps, status, and diagnostics.
+  Keep the original CSV format available with `SOOT_CSV_OUTPUT = true`.
+  Document Arduino IDE monitor setup and fault behavior. Driver unchanged.
 - Clarify the STEMMA QT chain for shared power/I2C: one ESP32 connection,
   with only the remaining analog and configuration wiring listed separately.
   Documentation only; firmware remains version 0.1.0.
