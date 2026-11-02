@@ -71,7 +71,7 @@ void loop()
             Serial.println("Sensor resistance: NA\nSensor current: NA");
             Serial.println("Diagnostic values below may be incomplete after a fault.");
         }
-        Serial.printf("Feedback channel: %u (1..4; 0 = unavailable) | Feedback: %.3f ohm\n",
+        Serial.printf("Feedback channel: %u (1..5; 0 = unavailable) | Feedback: %.3f ohm\n",
                       static_cast<unsigned>(result.feedback_channel),
                       result.feedback_resistance_ohms);
         Serial.printf("Bias: %.6f V | Delta: %.6f V | Output: %.6f V\n",
@@ -93,6 +93,6 @@ void loop()
             Serial.println("NA,NA"); // Never publish failed reads as zero ohms.
         }
     }
-    // Acquisition adds up to about 1.5 s at default averaging, plus bus overhead.
+    // Acquisition adds up to about 2.7 s at default averaging, plus bus overhead.
     delay(SOOT_REPORT_PAUSE_MS);
 }

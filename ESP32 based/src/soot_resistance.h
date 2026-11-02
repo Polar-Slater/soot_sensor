@@ -16,9 +16,9 @@
 #include <Wire.h>
 
 #define SOOT_RESISTANCE_VERSION_MAJOR 0u
-#define SOOT_RESISTANCE_VERSION_MINOR 1u
+#define SOOT_RESISTANCE_VERSION_MINOR 2u
 #define SOOT_RESISTANCE_VERSION_PATCH 0u
-#define SOOT_RESISTANCE_RANGE_COUNT 4u
+#define SOOT_RESISTANCE_RANGE_COUNT 5u
 
 typedef enum {
     SOOT_RESISTANCE_STATUS_OK = 0,
@@ -43,10 +43,10 @@ typedef struct {
     uint8_t ads1115_address;
     uint8_t adg728_address;
 
-    /* S1..S4, ascending resistance. Replace nominal values with calibration. */
+    /* S1..S5, ascending resistance. Replace nominal values with calibration. */
     float feedback_resistance_ohms[SOOT_RESISTANCE_RANGE_COUNT];
     float switch_resistance_ohms[SOOT_RESISTANCE_RANGE_COUNT];
-    uint32_t feedback_settle_ms;
+    uint32_t feedback_settle_ms; /* Base delay; S5 uses at least 1000 ms. */
 
     /* Analog circuit constants. */
     float requested_bias_volts;
@@ -66,7 +66,7 @@ typedef struct {
     float current_amps;        /* delta_volts / feedback resistance. */
     float resistance_ohms;     /* Resistance between clamp 1 and clamp 2. */
     float feedback_resistance_ohms; /* Selected resistor + switch correction. */
-    uint8_t feedback_channel;  /* Physical ADG728 channel, 1..4. */
+    uint8_t feedback_channel;  /* Physical ADG728 channel, 1..5. */
     int16_t average_bias_code;
     int16_t average_delta_code;
 } SootResistance_Measurement;
@@ -74,7 +74,7 @@ typedef struct {
 typedef struct {
     SootResistance_Config config;
     bool initialized;
-    uint8_t active_range;      /* Internal zero-based S1..S4 index. */
+    uint8_t active_range;      /* Internal zero-based S1..S5 index. */
 } SootResistance;
 
 /* Load the hardware values used by the current prototype. */
@@ -82,7 +82,7 @@ void SootResistance_configDefaults(SootResistance_Config *config,
                                    TwoWire *sharedWire);
 
 /*
- * Select S4, configure MCP4728 channel A, and verify ADS1115 response.
+ * Select S5, configure MCP4728 channel A, and verify ADS1115 response.
  * Call from setup/loop or one task after Wire.begin(); never from an ISR.
  * Serialize whole driver calls if multiple tasks share these devices.
  */
@@ -95,7 +95,7 @@ SootResistance_Status SootResistance_setBias(SootResistance *device);
 
 /*
  * Automatically select feedback, average ADC conversions, calculate resistance.
- * Starts at S4 on every call; steps down toward S1 only on saturation.
+ * Starts at S5 on every call; steps down toward S1 only on saturation.
  * Consume resistance/current only on OK. Failed calls clear resistance.
  * The measurement structure is populated even for most analog range errors,
  * allowing a debugger or caller to inspect the voltages that caused the error.
