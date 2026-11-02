@@ -1,6 +1,6 @@
 # ESP32 soot-sensor resistance module
 
-Version: **0.1.0**
+Version: **0.2.0**
 
 Standalone Arduino-ESP32 library and example for a standard **ESP32 DevKit /
 WROOM**. It replaces the CC2650 controller while retaining the MCP4728 DAC,
@@ -39,7 +39,7 @@ The default display looks like this (illustrative values, not a hardware test):
 Status: OK
 Sensor resistance: 100000.000 ohm
 Sensor current: 10.000000 uA
-Feedback channel: 4 (1..4; 0 = unavailable) | Feedback: 100000.000 ohm
+Feedback channel: 4 (1..5; 0 = unavailable) | Feedback: 100000.000 ohm
 Bias: 1.000000 V | Delta: 1.000000 V | Output: 2.000000 V
 ADC codes: bias=8000, delta=8000
 ```
@@ -124,15 +124,17 @@ circuit from the powered breakout chain's header pins or the same ESP32 supply.
 | ADG728 S1 through 100 ohms to MCP6002 pin 7 | Lowest feedback resistance |
 | ADG728 S2 through 1 kohm to MCP6002 pin 7 | Feedback range 2 |
 | ADG728 S3 through 10 kohms to MCP6002 pin 7 | Feedback range 3 |
-| ADG728 S4 through 100 kohms to MCP6002 pin 7 | Highest feedback resistance |
-| ADG728 S5..S8 unconnected | Unused channels |
+| ADG728 S4 through 100 kohms to MCP6002 pin 7 | Feedback range 4 |
+| ADG728 S5 through 1 Mohm to MCP6002 pin 7 | Highest feedback resistance |
+| ADG728 S6..S8 unconnected | Unused channels |
 | ADG728 RST held high, tied to 3.3 V if unused | Prevent unintended switch reset |
 | 0.1 uF directly between MCP6002 pins 7 and 6 | Feedback capacitor |
 | Sensor clamp 1 to MCP6002 pin 6 | Sensor input |
 | Sensor clamp 2 to GND | Sensor return |
 | 0.1 uF between MCP6002 pins 8 and 4 | Local supply decoupling |
 
-Remove the old 1 Mohm feedback resistor. Each branch uses one resistor; the four
+Wire the 1 Mohm resistor through S5 and remove any direct resistive link
+between MCP6002 pins 6 and 7. Each branch uses one resistor. The five
 ends at pin 7 join together. Keep the feedback capacitor directly across pins
 7 and 6, outside the switch. ADS1115 ADDR must stay at GND, never VIN.
 The old TI wiring pictures show the previous fixed-resistor layout and CC2650
@@ -147,9 +149,10 @@ Edit the first lines of `src/soot_resistance.cpp` when measured values are ready
 #define SOOT_FEEDBACK_S2_OHMS 1000.0f
 #define SOOT_FEEDBACK_S3_OHMS 10000.0f
 #define SOOT_FEEDBACK_S4_OHMS 100000.0f
+#define SOOT_FEEDBACK_S5_OHMS 1000000.0f
 ```
 
-Optional `SOOT_SWITCH_S1_OHMS` through `SOOT_SWITCH_S4_OHMS` add measured switch
+Optional `SOOT_SWITCH_S1_OHMS` through `SOOT_SWITCH_S5_OHMS` add measured switch
 series-resistance corrections. They default to zero, so initial calculations
 use only labeled resistor values. Zero does not represent actual switch
 resistance: this is especially significant on the 100 ohm branch. If you enter
@@ -158,17 +161,19 @@ at zero to avoid counting it twice. The switch correction is an approximation
 over operating voltage and temperature, not a guarantee of precision.
 
 Defaults can also be overridden per board in `config.feedback_resistance_ohms`
-and `config.switch_resistance_ohms` before initialization. The four effective
-values must be finite, positive, and strictly increasing in S1..S4 order.
+and `config.switch_resistance_ohms` before initialization. The five effective
+values must be finite, positive, and strictly increasing in S1..S5 order.
 
 ## Selection criteria and calculation
 
-Initialization and **every measurement** start at **S4, 100 kohms**. On saturation,
-selection descends **S3, 10 kohms -> S2, 1 kohm -> S1, 100 ohms**, stopping at the
+Initialization and **every measurement** start at **S5, 1 Mohm**. On saturation,
+selection descends **S4, 100 kohms -> S3, 10 kohms -> S2, 1 kohm -> S1, 100 ohms**, stopping at the
 first valid nonsaturated result. The resistor values remain listed in ascending
 channel order in the configuration; do not reverse that array.
 
-- Select exactly one channel, verify readback, and wait **100 ms** for settling.
+- Select exactly one channel, verify readback, and wait for settling. S1 through S4 default to **100 ms**.
+  S5 waits at least **1000 ms** (ten nominal RC time constants at 1 Mohm and
+  0.1 uF), or longer if `feedback_settle_ms` is larger. The same delays apply after bias updates.
 - Average **16 A1-to-GND** and **16 A0-minus-A1** conversions at 128 SPS.
 - Step down if an ADC code is >= 32700 or <= -32700, or the estimated output
   reaches **supply minus 0.05 V** (3.25 V with the default 3.3 V supply).
@@ -177,7 +182,7 @@ channel order in the configuration; do not reverse that array.
 - Delta **<= 0.0005 V** returns `OPEN_OR_OUT_OF_RANGE`. Lower gain cannot improve
   that weak signal, so there is no further switching.
 - Saturation at S1 returns `ADC_SATURATED`. Bus, switch-state, and conversion
-  failures also stop the read. At most four ranges are evaluated.
+  failures also stop the read. At most five ranges are evaluated.
 
 The differential polarity and equations are:
 
@@ -192,7 +197,7 @@ Rsensor    = Rfeedback * Vbias / delta
 
 Consume resistance/current **only on OK**. Failed reads clear resistance;
 available diagnostic fields are for investigation, and may be zero after an
-early bus error. Results identify the physical channel (1..4) and effective
+early bus error. Results identify the physical channel (1..5) and effective
 feedback used. The 1 V bias is across the sensor while the op-amp operates
 linearly; the feedback resistors set gain, not a separately commanded current.
 
@@ -215,8 +220,8 @@ Serialize entire init/read/setBias calls against tasks that configure these
 devices; transaction-level Wire locking alone does not protect a range scan.
 Use setup/loop or task context, never interrupts.
 
-Calls block with Arduino delay between polls and selections. A four-range read
-takes roughly 1.5 s plus bus/scheduling overhead; the example adds a 1 s pause
+Calls block with Arduino delay between polls and selections. A five-range read
+takes roughly 2.7 s plus bus/scheduling overhead; the example adds a 1 s pause
 after each report. The example retries failed initialization every 5 s and
 reinitializes after uncertain switch state. There is no Wi-Fi/BLE code.
 Configuration is immutable after init; reinitialize to apply changes.
@@ -226,15 +231,14 @@ code 2000 for 1 V). No EEPROM writes are issued.
 
 ## Validation
 
-Validated on 2026-10-28:
+Version 0.2.0 was validated on 2026-11-02.
 
 - Host regression tests and example compilation passed with Zig 0.13.0 C++11,
   using `-Wall -Wextra -Werror -pedantic` for the project sources.
 - Full example compilation passed with Arduino CLI 1.5.1 and Arduino-ESP32
   3.3.12 for `esp32:esp32:esp32`, with all compiler warnings enabled.
-  Reported usage: 296,388 bytes flash (22%) and 23,644 bytes global RAM (7%).
-- Version metadata and whitespace checks passed. The sibling TI package is
-  unchanged. No firmware was uploaded and physical hardware has not been tested.
+  The build uses 296,856 bytes flash (22%) and 23,660 bytes global RAM (7%).
+- Physical verification of the S5 branch and settling time is pending.
 
 Run the independent host suite with a C++ compiler and Python:
 
@@ -255,12 +259,12 @@ For physical bring-up:
 2. Measure the buffered bias near 1 V. With open clamps, expect an open/range
    fault rather than a numeric resistance.
 3. Test known sensor resistors of 1 kohm, 10 kohms, 100 kohms, and 1 Mohm.
-   Expect channels S2, S3, S4, S4 and nominal deltas 1 V, 1 V, 1 V, 0.1 V.
+   Expect channels S2, S3, S4, S5 and a nominal delta of 1 V each.
 4. Log raw codes, voltages, selected feedback, current, and resistance; compare
    with the known resistor and calibrate the switch path as needed.
 5. Scope actual sensor bias (MCP6002 pin 6) and output (pin 7) during startup and
-   range changes. Starting at 100 kohms can initially saturate low-resistance
-   loads. The 100 ms delay and 3.25 V software cutoff require bench validation.
+   range changes. Starting at 1 Mohm can initially saturate low-resistance
+   loads. The settling delays and 3.25 V software cutoff require bench validation.
 6. Validate low-resistance current drive and sensor heating before relying on
    the 100 ohm branch. At 1 V, a 100 ohm sensor requires 10 mA; feedback selection
    does not itself guarantee that the op-amp can maintain that bias under load.

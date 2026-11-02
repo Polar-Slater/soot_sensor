@@ -9,7 +9,7 @@ static uint32_t slept_ticks;
 static uint8_t selected_mask, selections[16];
 static unsigned selection_count, adc_reads, switch_reads;
 static uint16_t adc_config;
-static float sensor_ohms, bias_volts, feedback[4];
+static float sensor_ohms, bias_volts, feedback[SOOT_RESISTANCE_RANGE_COUNT];
 static int fail_address, mismatch_on_read, saturation_mask;
 static bool adc_timeout;
 
@@ -37,7 +37,7 @@ static bool modelTransfer(BusTransaction *t)
     if (t->slaveAddress == 0x4Cu) {
         if (t->writeCount != 0u) {
             assert(t->writeCount == 1u && t->readCount == 0u);
-            assert(w[0] == 1u || w[0] == 2u || w[0] == 4u || w[0] == 8u);
+            assert(w[0] == 1u || w[0] == 2u || w[0] == 4u || w[0] == 8u || w[0] == 16u);
             assert(selection_count < sizeof(selections));
             selected_mask = w[0];
             selections[selection_count++] = w[0];
@@ -73,7 +73,7 @@ static bool modelTransfer(BusTransaction *t)
         } else {
             assert((adc_config & 0x7000u) == 0u);
             for (range = 0u; selected_mask != (1u << range); ++range) {
-                assert(range < 4u);
+                assert(range < SOOT_RESISTANCE_RANGE_COUNT);
             }
             delta = sensor_ohms == 0.0f ? 3.0f :
                     bias_volts * feedback[range] / sensor_ohms;
@@ -183,25 +183,25 @@ int main(void)
     SootResistance_Status status;
     unsigned range;
     unsigned step;
-    const float loads[] = {100.0f, 1000.0f, 10000.0f, 100000.0f};
+    const float loads[] = {100.0f, 1000.0f, 10000.0f, 100000.0f, 1000000.0f};
 
-    for (range = 0u; range < 4u; ++range) {
+    for (range = 0u; range < SOOT_RESISTANCE_RANGE_COUNT; ++range) {
         config = reset();
         config.sample_count = 16u;
         sensor_ohms = loads[range];
         assert(SootResistance_init(&device, &config) == SOOT_RESISTANCE_STATUS_OK);
-        assert(selected_mask == 8u && selection_count == 1u);
+        assert(selected_mask == 16u && selection_count == 1u);
         assert(SootResistance_read(&device, &result) == SOOT_RESISTANCE_STATUS_OK);
         assert(result.feedback_channel == range + 1u);
-        assert(selection_count == 5u - range);
-        assert(adc_reads == (4u - range) * 32u);
+        assert(selection_count == 6u - range);
+        assert(adc_reads == (5u - range) * 32u);
         for (step = 1u; step < selection_count; ++step) {
-            assert(selections[step] == (8u >> (step - 1u)));
+            assert(selections[step] == (16u >> (step - 1u)));
         }
         near(result.resistance_ohms, sensor_ohms, 0.001f);
         near(result.current_amps, bias_volts / sensor_ohms, 0.001f);
         near(result.delta_volts, 1.0f, 0.001f);
-        assert(slept_ticks >= (6u - range) * config.feedback_settle_ms);
+        assert(slept_ticks >= 3000u + (4u - range) * config.feedback_settle_ms);
     }
 
     /* Large gain from last call must not persist when the sensor changes. */
@@ -209,12 +209,12 @@ int main(void)
     assert(SootResistance_read(&device, &result) == SOOT_RESISTANCE_STATUS_OK);
     assert(result.feedback_channel == 1u);
     near(result.resistance_ohms, sensor_ohms, 0.001f);
-    /* A later high-resistance load must start over at S4, not stay on S1. */
-    sensor_ohms = 100000.0f;
+    /* A later high-resistance load must start over at S5, not stay on S1. */
+    sensor_ohms = 1000000.0f;
     step = selection_count;
     assert(SootResistance_read(&device, &result) == SOOT_RESISTANCE_STATUS_OK);
-    assert(selection_count == step + 1u && selections[step] == 8u);
-    assert(result.feedback_channel == 4u);
+    assert(selection_count == step + 1u && selections[step] == 16u);
+    assert(result.feedback_channel == 5u);
     near(result.resistance_ohms, sensor_ohms, 0.001f);
 
     config = reset();
@@ -231,34 +231,34 @@ int main(void)
     assert(SootResistance_init(&device, &config) == SOOT_RESISTANCE_STATUS_OK);
     sensor_ohms = INFINITY;
     assert(SootResistance_read(&device, &result) == SOOT_RESISTANCE_STATUS_OPEN_OR_OUT_OF_RANGE);
-    assert(result.feedback_channel == 4u && result.resistance_ohms == 0.0f);
+    assert(result.feedback_channel == 5u && result.resistance_ohms == 0.0f);
     assert(selection_count == 2u && adc_reads == 2u);
-    sensor_ohms = 10000000.0f; /* Weak but valid signal remains on S4. */
+    sensor_ohms = 10000000.0f; /* Weak but valid signal remains on S5. */
     assert(SootResistance_read(&device, &result) == SOOT_RESISTANCE_STATUS_OK);
     near(result.resistance_ohms, sensor_ohms, 0.001f);
-    assert(result.feedback_channel == 4u && selection_count == 3u);
+    assert(result.feedback_channel == 5u && selection_count == 3u);
     sensor_ohms = 0.0f;
     assert(SootResistance_read(&device, &result) == SOOT_RESISTANCE_STATUS_ADC_SATURATED);
     assert(result.feedback_channel == 1u && result.resistance_ohms == 0.0f);
-    assert(selection_count == 7u && selections[6] == 1u);
+    assert(selection_count == 8u && selections[7] == 1u);
 
     config = reset();
     sensor_ohms = 1000.0f;
     saturation_mask = 2; /* Unexpected saturation at S2 must continue to S1. */
     assert(SootResistance_init(&device, &config) == SOOT_RESISTANCE_STATUS_OK);
     assert(SootResistance_read(&device, &result) == SOOT_RESISTANCE_STATUS_OK);
-    assert(selection_count == 5u && selections[4] == 1u && adc_reads == 8u);
+    assert(selection_count == 6u && selections[5] == 1u && adc_reads == 10u);
     near(result.resistance_ohms, sensor_ohms, 0.001f);
 
-    /* The analog-output cutoff is inclusive; just below it retains S4. */
+    /* The analog-output cutoff is inclusive; just below it retains S5. */
     config = reset();
-    sensor_ohms = 100000.0f / 2.25f;
+    sensor_ohms = 1000000.0f / 2.25f;
     assert(SootResistance_init(&device, &config) == SOOT_RESISTANCE_STATUS_OK);
     assert(SootResistance_read(&device, &result) == SOOT_RESISTANCE_STATUS_OK);
-    assert(result.feedback_channel == 3u && selection_count == 3u);
-    sensor_ohms = 100000.0f / 2.249875f;
+    assert(result.feedback_channel == 4u && selection_count == 3u);
+    sensor_ohms = 1000000.0f / 2.249875f;
     assert(SootResistance_read(&device, &result) == SOOT_RESISTANCE_STATUS_OK);
-    assert(result.feedback_channel == 4u && selection_count == 4u);
+    assert(result.feedback_channel == 5u && selection_count == 4u);
 
     /* Invalid bias stops immediately even if the output is also saturated. */
     config = reset();
@@ -266,7 +266,7 @@ int main(void)
     bias_volts = 1.3f;
     assert(SootResistance_read(&device, &result) == SOOT_RESISTANCE_STATUS_BIAS_OUT_OF_RANGE);
     assert(result.resistance_ohms == 0.0f);
-    assert(selection_count == 2u && result.feedback_channel == 4u);
+    assert(selection_count == 2u && result.feedback_channel == 5u);
     bias_volts = 1.0f;
     adc_timeout = true;
     assert(SootResistance_read(&device, &result) == SOOT_RESISTANCE_STATUS_ADC_TIMEOUT);
@@ -315,7 +315,7 @@ int main(void)
     assert(SootResistance_init(&device, &config) == SOOT_RESISTANCE_STATUS_OK);
     slept_ticks = 0u;
     assert(SootResistance_setBias(&device) == SOOT_RESISTANCE_STATUS_OK);
-    assert(slept_ticks >= config.feedback_settle_ms);
+    assert(slept_ticks >= 1000u);
     fail_address = 0x60;
     assert(SootResistance_setBias(&device) == SOOT_RESISTANCE_STATUS_DAC_I2C_ERROR);
     assert(!device.initialized);

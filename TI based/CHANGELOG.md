@@ -2,6 +2,15 @@
 
 All notable changes to this handoff package are recorded here.
 
+## 0.3.0 - 2026-11-02
+
+- Add the nominal 1 Mohm feedback resistor on ADG728 S5 (mask 0x10), with
+  an editable resistor value and optional switch correction. Start at S5 and
+  descend through S4 to S1 on saturation. Allow at least 1000 ms for S5
+  settling after selection or bias changes.
+- Five-range host tests and the integration example build against the TI API
+  stubs passed. A final CCS build and physical measurements are pending.
+
 ## 0.2.1 - 2026-10-27
 
 - Initialize feedback at S4 (100 kohm) and start every read at the highest

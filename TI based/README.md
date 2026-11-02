@@ -1,6 +1,6 @@
 # CC2650 soot-sensor resistance module
 
-Version: **0.2.1**
+Version: **0.3.0**
 
 This folder contains the C code needed for a TI CC2650 SensorTag to control the
 MCP4728, ADG728, and ADS1115 in the soot-sensor analog circuit and calculate the
@@ -34,8 +34,9 @@ The analog connections are:
 | ADG728 S1 through 100 ohm to MCP6002 pin 7 | Lowest feedback gain |
 | ADG728 S2 through 1 kohm to MCP6002 pin 7 | Feedback range 2 |
 | ADG728 S3 through 10 kohm to MCP6002 pin 7 | Feedback range 3 |
-| ADG728 S4 through 100 kohm to MCP6002 pin 7 | Highest feedback gain |
-| ADG728 S5..S8 unconnected | Unused channels always off |
+| ADG728 S4 through 100 kohm to MCP6002 pin 7 | Feedback range 4 |
+| ADG728 S5 through 1 Mohm to MCP6002 pin 7 | Highest feedback gain |
+| ADG728 S6..S8 unconnected | Unused channels always off |
 | 0.1 uF capacitor directly from pin 7 to pin 6 | Feedback filter retained across the whole switched network |
 | Clamp 1 to MCP6002 pin 6 | Sensor connects to TIA summing node |
 | Clamp 2 to GND | Completes sensor bias path |
@@ -43,9 +44,8 @@ The analog connections are:
 
 Do not connect ADS1115 ADDR to VIN. ADDR is tied to GND for address `0x48`.
 
-Remove the previous 1 Mohm feedback resistor; do not leave it in parallel with
-the new bank. Use one resistor of each labeled value, irrespective of purchase
-quantities in the screenshot. All four resistor ends on the output side join
+Wire the 1 Mohm resistor through S5 so it is selected only on that range.
+Remove any direct resistive link between pins 6 and 7. All five resistor ends on the output side join
 pin 7. ADG728 address pads A0/A1 are address selectors, unrelated to the ADS1115
 analog inputs A0/A1. Leave its address jumpers at default for `0x4C`, and keep
 RST high during operation; tie RST to 3.3 V if reset control is unused.
@@ -56,17 +56,18 @@ use the connection table above for this revision's feedback wiring.
 
 ## Calibration inputs
 
-The first lines of `src/soot_resistance.c` contain the four values to edit later:
+The first lines of `src/soot_resistance.c` contain the five values to edit later:
 
 ```c
 #define SOOT_FEEDBACK_S1_OHMS 100.0f
 #define SOOT_FEEDBACK_S2_OHMS 1000.0f
 #define SOOT_FEEDBACK_S3_OHMS 10000.0f
 #define SOOT_FEEDBACK_S4_OHMS 100000.0f
+#define SOOT_FEEDBACK_S5_OHMS 1000000.0f
 ```
 
 Replace each with its measured resistor value in ohms. Optional
-`SOOT_SWITCH_S1_OHMS` through `SOOT_SWITCH_S4_OHMS` add a measured series-switch
+`SOOT_SWITCH_S1_OHMS` through `SOOT_SWITCH_S5_OHMS` add a measured series-switch
 correction and default to zero, so initial results use only the labeled values.
 The ADG728 has nonzero, signal-dependent on-resistance (the datasheet specifies
 6 ohms typical at a 3 V supply); neglecting it can produce appreciable error on
@@ -75,7 +76,7 @@ If calibrating the complete resistor-plus-switch path, enter that effective
 value as the feedback value and leave its separate switch correction at zero.
 
 For individual boards, the same values can be overridden in
-`config.feedback_resistance_ohms[0..3]` and `config.switch_resistance_ohms[0..3]`
+`config.feedback_resistance_ohms[0..4]` and `config.switch_resistance_ohms[0..4]`
 after `SootResistance_configDefaults()` and before initialization. Effective
 values must be finite, positive, and strictly increasing. Treat the device's
 configuration as immutable after init; reinitialize to apply changes.
@@ -106,29 +107,29 @@ sensor resistance = Rfeedback * A1 / (A0 - A1)
 `Rfeedback` is the selected resistor plus its optional switch correction. Each
 range evaluation averages 16 A1 conversions and 16 A0-A1 conversions.
 
-Initialization and every read start at S4 (100 kohms). If the ADC saturates or
+Initialization and every read start at S5 (1 Mohm). If the ADC saturates or
 the output reaches the analog rail cutoff (3.25 V at the default 3.3 V supply),
-the driver steps down to S3 (10 kohms), S2 (1 kohm), then S1 (100 ohms), stopping
+the driver steps down to S4 (100 kohms), S3 (10 kohms), S2 (1 kohm), then S1 (100 ohms), stopping
 at the first valid, nonsaturated result. Only one channel is enabled, using
-masks `0x08`, `0x04`, `0x02`, then `0x01`, with register readback checked.
+masks `0x10`, `0x08`, `0x04`, `0x02`, then `0x01`, with register readback checked.
 Switching uses one byte with
 no register pointer. The ADG728 provides break-before-make switching.
-The driver waits 100 ms after each selection and bias update. With the retained
-0.1 uF capacitor, this is ten RC time constants at nominal 100 kohms; increase
-`feedback_settle_ms` if circuit changes or bench settling tests require it.
+After selection or bias updates, S1 through S4 use `feedback_settle_ms`
+(default 100 ms). S5 uses the greater of that setting and 1000 ms, ten nominal
+RC time constants with 1 Mohm and 0.1 uF. Verify settling on the bench.
 
-Each step takes fresh data after settling. There are at most four evaluations;
+Each step takes fresh data after settling. There are at most five evaluations;
 the scan never loops indefinitely or increases gain during a read. A small
-signal on S4 is still valid if above the minimum delta of 0.5 mV; otherwise
+signal on S5 is still valid if above the minimum delta of 0.5 mV; otherwise
 the result is `OPEN_OR_OUT_OF_RANGE`, with no further range changes. Lower gain
 cannot improve a weak signal. Saturation on S1 is reported as an error.
 Communication, invalid-bias, and conversion faults stop the read; invalid bias
 takes priority over saturation. Failed reads clear `resistance_ohms`; only consume numeric
 resistance/current when status is `OK`. Results include `feedback_channel`
-(1..4), effective `feedback_resistance_ohms`, bias, output, and delta voltages.
+(1..5), effective `feedback_resistance_ohms`, bias, output, and delta voltages.
 
-At default averaging, a scan can take roughly 1.5 seconds plus scheduler/I2C
-overhead. S4 feedback is selected before programming bias during initialization.
+At default averaging, a scan can take roughly 2.7 seconds plus scheduler/I2C
+overhead. S5 feedback is selected before programming bias during initialization.
 Low-resistance sensors may saturate the output at the start of a scan; sensor
 bias is not guaranteed while saturated. Bench-check recovery after descending
 to a valid range; the settling delay is not a substitute for hardware validation.
@@ -225,6 +226,7 @@ bounds, not guaranteed accuracy/current-drive limits:
 | S2 | 1 kohm | 444 ohm | 2 Mohm |
 | S3 | 10 kohm | 4.44 kohm | 20 Mohm |
 | S4 | 100 kohm | 44.4 kohm | 200 Mohm |
+| S5 | 1 Mohm | 444 kohm | 2 Gohm |
 
 Low sensor resistances demand `1 V / Rsensor` current. MCP6002 output drive,
 output swing under load, switch resistance, offsets, leakage, and noise limit
@@ -265,7 +267,7 @@ and XDCtools versions rather than migrating the whole project during this port.
 ## Validation required on hardware
 
 Host regression tests compile the actual driver against simulated I2C/TI-RTOS
-interfaces, including the descending channel order, all four ranges, calibration,
+interfaces, including the descending channel order, all five ranges, calibration,
 changing loads, settling, cutoff boundaries, open/saturated inputs, and
 communication/reset failures:
 
@@ -288,8 +290,7 @@ configuration. During handoff, perform these checks in order:
    MCP6002 pins 1, 3, and 5.
 4. With clamps open, confirm `OPEN_OR_OUT_OF_RANGE` rather than a random value.
 5. Test known sensor resistors of 1 kohm, 10 kohm, 100 kohm, and 1 Mohm. Expect
-   S2, S3, S4, and S4 respectively, with nominal deltas of 1 V, 1 V, 1 V,
-   and 0.1 V. Near the saturation cutoff, tolerances/ADC quantization may select
+   S2, S3, S4, and S5 respectively, with a nominal delta of 1 V each. Near the saturation cutoff, tolerances/ADC quantization may select
    the next lower channel. Log channel, effective
    feedback, raw codes, bias/delta voltages, and calculated resistance; compare
    against a multimeter. Confirm switch correction especially on S1.

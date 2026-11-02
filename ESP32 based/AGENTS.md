@@ -10,7 +10,7 @@
   100 kHz, 3.3 V logic. The application owns and initializes Wire only once.
 - Use the external ADS1115, MCP4728, MCP6002, and ADG728. Keep seven-bit I2C
   addresses unshifted and preserve A0-minus-A1 polarity.
-- Initialize and start every read at S4 (100 kohm). Descend S3, S2, S1 only on
+- Initialize and start every read at S5 (1 Mohm). Descend S4, S3, S2, S1 only on
   saturation, using exactly one channel, readback verification, and settling.
 - Keep editable resistor values at the top of src/soot_resistance.cpp. Compute
   sensor resistance with selected effective feedback times bias divided by delta.

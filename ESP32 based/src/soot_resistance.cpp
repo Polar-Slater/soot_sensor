@@ -3,12 +3,14 @@
 #define SOOT_FEEDBACK_S2_OHMS               1000.0f
 #define SOOT_FEEDBACK_S3_OHMS               10000.0f
 #define SOOT_FEEDBACK_S4_OHMS               100000.0f
+#define SOOT_FEEDBACK_S5_OHMS               1000000.0f
 
 /* Optional measured series-switch corrections; zero means uncalibrated. */
 #define SOOT_SWITCH_S1_OHMS                 0.0f
 #define SOOT_SWITCH_S2_OHMS                 0.0f
 #define SOOT_SWITCH_S3_OHMS                 0.0f
 #define SOOT_SWITCH_S4_OHMS                 0.0f
+#define SOOT_SWITCH_S5_OHMS                 0.0f
 
 #include "soot_resistance.h"
 
@@ -103,6 +105,16 @@ static bool i2cTransfer(TwoWire *wire,
     return true;
 }
 
+/* At 1 Mohm and 0.1 uF, ten nominal RC time constants are 1000 ms. */
+static void waitForFeedback(const SootResistance *device)
+{
+    uint32_t delay_ms = device->config.feedback_settle_ms;
+    if ((device->active_range == 4u) && (delay_ms < 1000u)) {
+        delay_ms = 1000u;
+    }
+    sleepMilliseconds(delay_ms);
+}
+
 static float effectiveFeedback(const SootResistance *device, uint8_t range)
 {
     return device->config.feedback_resistance_ohms[range] +
@@ -143,8 +155,7 @@ static SootResistance_Status selectFeedback(SootResistance *device,
         return status;
     }
     device->active_range = range;
-    /* 100 ms is 10 RC time constants at 100 kohm with the retained 0.1 uF. */
-    sleepMilliseconds(device->config.feedback_settle_ms);
+    waitForFeedback(device);
     return SOOT_RESISTANCE_STATUS_OK;
 }
 
@@ -281,10 +292,12 @@ void SootResistance_configDefaults(SootResistance_Config *config,
     config->feedback_resistance_ohms[1] = SOOT_FEEDBACK_S2_OHMS;
     config->feedback_resistance_ohms[2] = SOOT_FEEDBACK_S3_OHMS;
     config->feedback_resistance_ohms[3] = SOOT_FEEDBACK_S4_OHMS;
+    config->feedback_resistance_ohms[4] = SOOT_FEEDBACK_S5_OHMS;
     config->switch_resistance_ohms[0] = SOOT_SWITCH_S1_OHMS;
     config->switch_resistance_ohms[1] = SOOT_SWITCH_S2_OHMS;
     config->switch_resistance_ohms[2] = SOOT_SWITCH_S3_OHMS;
     config->switch_resistance_ohms[3] = SOOT_SWITCH_S4_OHMS;
+    config->switch_resistance_ohms[4] = SOOT_SWITCH_S5_OHMS;
     config->feedback_settle_ms = SOOT_DEFAULT_FEEDBACK_SETTLE_MS;
     config->requested_bias_volts = SOOT_DEFAULT_BIAS_VOLTS;
     config->minimum_valid_bias_volts = SOOT_DEFAULT_MIN_BIAS_VOLTS;
@@ -364,7 +377,7 @@ SootResistance_Status SootResistance_init(
     if (status != SOOT_RESISTANCE_STATUS_OK) {
         return status;
     }
-    sleepMilliseconds(device->config.feedback_settle_ms);
+    waitForFeedback(device);
 
     /* Reading the configuration register verifies the ADS1115 address/ACK. */
     if (!ads1115ReadRegister(device, ADS1115_REG_CONFIG, &adsConfig)) {
@@ -387,7 +400,7 @@ SootResistance_Status SootResistance_setBias(SootResistance *device)
 
     status = writeMcp4728ChannelA(device);
     if (status == SOOT_RESISTANCE_STATUS_OK) {
-        sleepMilliseconds(device->config.feedback_settle_ms);
+        waitForFeedback(device);
     } else {
         device->initialized = false;
     }
@@ -522,7 +535,7 @@ SootResistance_Status SootResistance_read(
         return SOOT_RESISTANCE_STATUS_NOT_INITIALIZED;
     }
 
-    /* Try S4, S3, S2, S1; retain the highest gain that is not saturated. */
+    /* Try S5, S4, S3, S2, S1; retain the highest gain that is not saturated. */
     range = SOOT_RESISTANCE_RANGE_COUNT;
     while (range > 0u) {
         --range;

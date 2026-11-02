@@ -2,15 +2,19 @@
 
 This package has its own version sequence, independent of `TI based`.
 
-## Unreleased
+## 0.2.0 - 2026-11-02
 
+- Add the nominal 1 Mohm feedback resistor on ADG728 S5 (mask 0x10), with
+  an editable resistor value and optional switch correction. Start at S5 and
+  descend through S4 to S1 on saturation. Allow at least 1000 ms for S5
+  settling after selection or bias changes.
+- Five-range host tests and the ESP32 Dev Module build passed.
 - Default the Arduino example to labeled Serial Monitor readings at 115200 baud,
   including resistance in ohms, current in microamps, status, and diagnostics.
   Keep the original CSV format available with `SOOT_CSV_OUTPUT = true`.
-  Document Arduino IDE monitor setup and fault behavior. Driver unchanged.
+  Document Arduino IDE monitor setup and fault behavior.
 - Clarify the STEMMA QT chain for shared power/I2C: one ESP32 connection,
   with only the remaining analog and configuration wiring listed separately.
-  Documentation only; firmware remains version 0.1.0.
 
 ## 0.1.0 - 2026-10-28
 
