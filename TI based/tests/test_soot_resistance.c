@@ -13,6 +13,7 @@ static uint16_t adc_config;
 static float sensor_ohms, bias_volts, feedback[SOOT_RESISTANCE_RANGE_COUNT];
 static int fail_address, mismatch_on_read, saturation_mask;
 static bool adc_timeout;
+static float maximum_delta_volts;
 
 void Task_sleep(uint32_t ticks) { assert(ticks > 0u); slept_ticks += ticks; }
 
@@ -68,7 +69,7 @@ bool I2C_transfer(I2C_Handle handle, I2C_Transaction *t)
             }
             delta = sensor_ohms == 0.0f ? 3.0f :
                     bias_volts * feedback[range] / sensor_ohms;
-            if (selected_mask == saturation_mask || delta > 2.3f) { delta = 2.3f; }
+            if (selected_mask == saturation_mask || delta > maximum_delta_volts) { delta = maximum_delta_volts; }
             value = (uint16_t)(int16_t)lroundf(delta / 0.000125f);
         }
     }
@@ -87,6 +88,7 @@ static SootResistance_Config reset(void)
     slept_ticks = 0u;
     adc_config = 0u;
     sensor_ohms = 5000.0f;
+    maximum_delta_volts = 2.3f;
     bias_volts = 1.0f;
     fail_address = mismatch_on_read = saturation_mask = -1;
     adc_timeout = false;
@@ -174,13 +176,22 @@ int main(void)
     assert(selection_count == 6u && selections[5] == 1u && adc_reads == 10u);
     near(result.resistance_ohms, sensor_ohms, 0.001f);
 
+    /* A 3.155 V output plateau must not be accepted as ~464 ohm on S2. */
+    config = reset();
+    maximum_delta_volts = 2.155f;
+    sensor_ohms = 100.0f;
+    assert(SootResistance_init(&device, &config) == SOOT_RESISTANCE_STATUS_OK);
+    assert(SootResistance_read(&device, &result) == SOOT_RESISTANCE_STATUS_OK);
+    assert(result.feedback_channel == 1u && selection_count == 6u);
+    near(result.resistance_ohms, sensor_ohms, 0.001f);
+
     /* The analog-output cutoff is inclusive; just below it retains S5. */
     config = reset();
-    sensor_ohms = 1000000.0f / 2.25f;
+    sensor_ohms = 1000000.0f / 2.0f;
     assert(SootResistance_init(&device, &config) == SOOT_RESISTANCE_STATUS_OK);
     assert(SootResistance_read(&device, &result) == SOOT_RESISTANCE_STATUS_OK);
     assert(result.feedback_channel == 4u && selection_count == 3u);
-    sensor_ohms = 1000000.0f / 2.249875f;
+    sensor_ohms = 1000000.0f / 1.999875f;
     assert(SootResistance_read(&device, &result) == SOOT_RESISTANCE_STATUS_OK);
     assert(result.feedback_channel == 5u && selection_count == 4u);
 

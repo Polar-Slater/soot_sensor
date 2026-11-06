@@ -1,6 +1,6 @@
 # CC2650 soot-sensor resistance module
 
-Version: **0.3.0**
+Version: **0.3.1**
 
 This folder contains the C code needed for a TI CC2650 SensorTag to control the
 MCP4728, ADG728, and ADS1115 in the soot-sensor analog circuit and calculate the
@@ -108,7 +108,8 @@ sensor resistance = Rfeedback * A1 / (A0 - A1)
 range evaluation averages 16 A1 conversions and 16 A0-A1 conversions.
 
 Initialization and every read start at S5 (1 Mohm). If the ADC saturates or
-the output reaches the analog rail cutoff (3.25 V at the default 3.3 V supply),
+the output reaches the cutoff (configured supply minus 0.30 V, or 3.0 V
+at the default 3.3 V supply),
 the driver steps down to S4 (100 kohms), S3 (10 kohms), S2 (1 kohm), then S1 (100 ohms), stopping
 at the first valid, nonsaturated result. Only one channel is enabled, using
 masks `0x10`, `0x08`, `0x04`, `0x02`, then `0x01`, with register readback checked.
@@ -215,22 +216,22 @@ Start at 100 kHz during bring-up. All three breakout boards contain I2C pull-ups
 
 ## Expected range and status handling
 
-At 1 V bias and 3.3 V supply, the software output cutoff is 3.25 V. The ideal
-lower sensor-resistance bound is therefore `Rfeedback / 2.25`; minimum accepted
+At 1 V bias and 3.3 V supply, the software output cutoff is 3.0 V. The ideal
+lower sensor-resistance bound is therefore `Rfeedback / 2.0`; minimum accepted
 delta requires sensor resistance below `Rfeedback / 0.0005`. These are equation
-bounds, not guaranteed accuracy/current-drive limits:
+bounds, not guaranteed accuracy/current-drive limits. Both bounds are exclusive:
 
 | Channel | Nominal feedback | Ideal sensor lower bound | Ideal sensor upper bound |
 | --- | --- | --- | --- |
-| S1 | 100 ohm | 44.4 ohm | 200 kohm |
-| S2 | 1 kohm | 444 ohm | 2 Mohm |
-| S3 | 10 kohm | 4.44 kohm | 20 Mohm |
-| S4 | 100 kohm | 44.4 kohm | 200 Mohm |
-| S5 | 1 Mohm | 444 kohm | 2 Gohm |
+| S1 | 100 ohm | 50 ohm | 200 kohm |
+| S2 | 1 kohm | 500 ohm | 2 Mohm |
+| S3 | 10 kohm | 5 kohm | 20 Mohm |
+| S4 | 100 kohm | 50 kohm | 200 Mohm |
+| S5 | 1 Mohm | 500 kohm | 2 Gohm |
 
 Low sensor resistances demand `1 V / Rsensor` current. MCP6002 output drive,
 output swing under load, switch resistance, offsets, leakage, and noise limit
-the usable range. In particular, the ideal 44.4 ohm bound must not be treated
+the usable range. In particular, the ideal 50 ohm bound must not be treated
 as a validated operating point. Validate the intended low-resistance loads.
 
 Important statuses:

@@ -1,6 +1,6 @@
 # ESP32 soot-sensor resistance module
 
-Version: **0.2.0**
+Version: **0.2.1**
 
 Standalone Arduino-ESP32 library and example for a standard **ESP32 DevKit /
 WROOM**. It replaces the CC2650 controller while retaining the MCP4728 DAC,
@@ -176,7 +176,7 @@ channel order in the configuration; do not reverse that array.
   0.1 uF), or longer if `feedback_settle_ms` is larger. The same delays apply after bias updates.
 - Average **16 A1-to-GND** and **16 A0-minus-A1** conversions at 128 SPS.
 - Step down if an ADC code is >= 32700 or <= -32700, or the estimated output
-  reaches **supply minus 0.05 V** (3.25 V with the default 3.3 V supply).
+  reaches **supply minus 0.30 V** (3.0 V with the default 3.3 V supply).
 - Bias outside **0.8..1.2 V** returns a bias fault and stops the scan. This takes
   priority over saturation.
 - Delta **<= 0.0005 V** returns `OPEN_OR_OUT_OF_RANGE`. Lower gain cannot improve
@@ -231,14 +231,14 @@ code 2000 for 1 V). No EEPROM writes are issued.
 
 ## Validation
 
-Version 0.2.0 was validated on 2026-11-02.
+Version 0.2.1 software checks passed on 2026-11-06.
 
 - Host regression tests and example compilation passed with Zig 0.13.0 C++11,
   using `-Wall -Wextra -Werror -pedantic` for the project sources.
 - Full example compilation passed with Arduino CLI 1.5.1 and Arduino-ESP32
   3.3.12 for `esp32:esp32:esp32`, with all compiler warnings enabled.
   The build uses 296,856 bytes flash (22%) and 23,660 bytes global RAM (7%).
-- Physical verification of the S5 branch and settling time is pending.
+- Physical verification of the S5 branch, settling time, and 3.0 V cutoff is pending.
 
 Run the independent host suite with a C++ compiler and Python:
 
@@ -264,7 +264,7 @@ For physical bring-up:
    with the known resistor and calibrate the switch path as needed.
 5. Scope actual sensor bias (MCP6002 pin 6) and output (pin 7) during startup and
    range changes. Starting at 1 Mohm can initially saturate low-resistance
-   loads. The settling delays and 3.25 V software cutoff require bench validation.
+   loads. The settling delays and 3.0 V software cutoff require bench validation.
 6. Validate low-resistance current drive and sensor heating before relying on
    the 100 ohm branch. At 1 V, a 100 ohm sensor requires 10 mA; feedback selection
    does not itself guarantee that the op-amp can maintain that bias under load.

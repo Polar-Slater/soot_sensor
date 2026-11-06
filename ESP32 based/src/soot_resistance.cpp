@@ -63,7 +63,7 @@
 #define SOOT_DEFAULT_ANALOG_SUPPLY_VOLTS    3.300f
 #define SOOT_DEFAULT_SAMPLE_COUNT           16u
 #define SOOT_MAX_SAMPLE_COUNT               256u
-#define SOOT_OUTPUT_RAIL_MARGIN_VOLTS       0.050f
+#define SOOT_OUTPUT_RAIL_MARGIN_VOLTS       0.300f /* 3.0 V cutoff at 3.3 V supply. */
 
 static void sleepMilliseconds(uint32_t milliseconds)
 {

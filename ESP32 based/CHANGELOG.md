@@ -2,6 +2,14 @@
 
 This package has its own version sequence, independent of `TI based`.
 
+## 0.2.1 - 2026-11-06
+
+- Switch to the next smaller feedback resistor at output >= 3.0 V with the
+  default 3.3 V supply (supply minus 0.30 V), allowing more output headroom.
+- Add boundary and simulated 3.155 V clipping regression coverage, including
+  descent from S2 to S1. Host tests and the ESP32 Dev Module build pass.
+  Physical verification of the plateau fix is pending.
+
 ## 0.2.0 - 2026-11-02
 
 - Add the nominal 1 Mohm feedback resistor on ADG728 S5 (mask 0x10), with
