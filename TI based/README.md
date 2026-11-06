@@ -205,8 +205,8 @@ Do not use it when the production firmware has already opened `Board_I2C`.
 
 - ADS1115 with ADDR grounded: `0x48`
 - MCP4728: normally `0x60`
-- Some Adafruit MCP4728A4 boards: `0x64`
-- Adafruit ADG728: `0x4C` by default, `0x4C`..`0x4F` with address jumpers
+- Some Adafruit MCP4728A4 boards: `0x64`, here we don't use `0x64`
+- Adafruit ADG728: `0x4C` by default, `0x4C`..`0x4F` with address jumpers, here `0x4C` is used
 
 If initialization returns `DAC_I2C_ERROR`, scan or probe `0x60` and `0x64` and
 update `mcp4728_address`. All addresses passed to TI-RTOS are seven-bit values;
